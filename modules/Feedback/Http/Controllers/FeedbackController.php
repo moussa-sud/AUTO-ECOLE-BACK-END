@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Feedback\Http\Resources\FeedbackResource;
 use Modules\Feedback\Models\Feedback;
+use Modules\Feedback\Notifications\NewFeedbackNotification;
 
 class FeedbackController extends Controller
 {
@@ -82,6 +83,13 @@ class FeedbackController extends Controller
                 'comment' => $request->comment,
             ]
         );
+
+        // Notify all owners of this tenant
+        User::where('tenant_id', $request->user()->tenant_id)
+            ->where('role', 'owner')
+            ->each(fn(User $owner) => $owner->notify(
+                new NewFeedbackNotification($feedback, $request->user(), $staff)
+            ));
 
         return response()->json([
             'message' => 'تم حفظ تقييمك بنجاح.',
